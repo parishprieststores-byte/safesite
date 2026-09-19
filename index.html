@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d47a1" id="meta-theme">
+<meta name="description" content="Workplace Security & Safety companion app with offline checklists, incident reporting and audit tools.">
+<title>SafeSite — Workplace Safety & Security</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="splash">
+  <img id="splash-logo-img" hidden alt="">
+  <div class="splash-logo" id="splash-logo">🛡️</div>
+  <div class="splash-title" id="splash-title">SafeSite</div>
+  <div class="splash-sub" id="splash-sub">Workplace Safety &amp; Security</div>
+</div>
+
+<header class="app-header">
+  <div class="header-inner">
+    <div class="brand">
+      <img id="brand-logo-img" hidden alt="" class="brand-logo">
+      <span class="brand-icon" id="brand-icon">🛡️</span>
+      <span id="brand-name">SafeSite</span>
+    </div>
+    <div class="header-actions">
+      <span id="offline-badge" class="offline-badge" hidden>● Offline</span>
+      <button id="btn-install" class="ghost-btn" hidden>⬇ Install App</button>
+    </div>
+  </div>
+  <nav class="tab-bar" role="tablist">
+    <button class="tab active" data-view="checklists" role="tab">✅ Checklists</button>
+    <button class="tab" data-view="incident" role="tab">🚨 Incident</button>
+    <button class="tab" data-view="records" role="tab">📁 Records</button>
+    <button class="tab" data-view="guide" role="tab">📖 Guide</button>
+    <button class="tab" data-view="settings" role="tab">⚙️ Settings</button>
+  </nav>
+</header>
+
+<main id="main">
+
+  <!-- ============ CHECKLISTS VIEW ============ -->
+  <section id="view-checklists" class="view active" role="tabpanel">
+    <div id="checklist-list-screen">
+      <h2 id="l-checklists-title">Checklists</h2>
+      <p class="muted" id="l-checklists-intro"></p>
+      <div id="checklist-cards" class="card-grid"></div>
+    </div>
+    <div id="checklist-run-screen" hidden>
+      <button class="back-btn" id="btn-back-to-list">← All checklists</button>
+      <div class="run-head">
+        <h2 id="run-title"></h2>
+        <p class="muted" id="run-desc"></p>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div id="run-progress" class="progress-fill"></div></div>
+        <span id="run-progress-text" class="progress-text">0%</span>
+      </div>
+      <div id="run-meta" class="meta-panel">
+        <label id="l-site-label">Site / Location <input id="run-location" type="text"></label>
+        <label id="l-inspector-label">Inspector <input id="run-inspector" type="text"></label>
+      </div>
+      <div id="run-items"></div>
+      <div class="run-actions">
+        <button id="btn-reset-run" class="ghost-btn">Reset</button>
+        <button id="btn-save-run" class="primary-btn">💾 Save Inspection</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ INCIDENT VIEW ============ -->
+  <section id="view-incident" class="view" role="tabpanel">
+    <h2 id="l-incident-title">Report an Incident</h2>
+    <p class="muted" id="l-incident-intro"></p>
+    <form id="incident-form">
+      <label id="l-datetime">Date &amp; time
+        <input type="datetime-local" id="inc-datetime" required>
+      </label>
+      <label id="l-type">Type
+        <select id="inc-type"></select>
+      </label>
+      <label id="l-severity">Severity
+        <select id="inc-severity"></select>
+      </label>
+      <label id="l-location">Location <input type="text" id="inc-location" required></label>
+      <label id="l-people">People involved <input type="text" id="inc-people"></label>
+      <label id="l-what">What happened? <textarea id="inc-desc" rows="4" required></textarea></label>
+      <label id="l-action">Immediate action taken <textarea id="inc-action" rows="2"></textarea></label>
+      <label class="check-row"><input type="checkbox" id="inc-reported"> <span id="l-reported">Reported to supervisor / emergency services</span></label>
+      <button type="submit" class="primary-btn" id="l-save-report">💾 Save Report</button>
+    </form>
+  </section>
+
+  <!-- ============ RECORDS VIEW ============ -->
+  <section id="view-records" class="view" role="tabpanel">
+    <h2 id="l-records-title">Saved Records</h2>
+    <div class="export-row">
+      <button id="btn-export-csv" class="ghost-btn">⬇ Export CSV</button>
+      <button id="btn-export-json" class="ghost-btn">⬇ Export JSON</button>
+      <button id="btn-print-pdf" class="ghost-btn">🖨 PDF</button>
+      <button id="btn-clear-all" class="danger-btn">🗑 Delete all records</button>
+    </div>
+    <div id="records-tabs">
+      <button class="pill active" data-records="inspections"><span id="l-tab-insp">Inspections</span> <span id="count-inspections" class="count">0</span></button>
+      <button class="pill" data-records="incidents"><span id="l-tab-inc">Incidents</span> <span id="count-incidents" class="count">0</span></button>
+    </div>
+    <div id="records-inspections" class="records-pane"></div>
+    <div id="records-incidents" class="records-pane" hidden></div>
+  </section>
+
+  <!-- ============ GUIDE VIEW ============ -->
+  <section id="view-guide" class="view" role="tabpanel">
+    <h2 id="l-guide-title">Emergency &amp; Safety Guide</h2>
+    <div class="accordion" id="guide-accordion"></div>
+  </section>
+
+  <!-- ============ SETTINGS VIEW ============ -->
+  <section id="view-settings" class="view" role="tabpanel">
+    <h2 id="l-settings-title">Settings &amp; Branding</h2>
+    <p class="muted" id="l-settings-intro"></p>
+    <div class="settings-panel">
+      <label id="l-company">Company name
+        <input type="text" id="set-company" maxlength="60" placeholder="e.g. ACME Logistics Ltd.">
+      </label>
+      <label id="l-logo">Company logo</label>
+      <div class="logo-row">
+        <img id="logo-preview" class="logo-preview" hidden alt="logo">
+        <input type="file" id="set-logo" accept="image/png,image/jpeg,image/webp" class="file-input">
+        <button type="button" id="btn-remove-logo" class="ghost-btn small" hidden>Remove logo</button>
+      </div>
+      <p class="hint" id="l-logo-hint">PNG or JPG, ideally square. Stored locally on this device.</p>
+      <label id="l-theme">Brand color
+        <input type="color" id="set-color" value="#0d47a1">
+      </label>
+      <label id="l-language">Language
+        <select id="set-lang">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+      </label>
+      <button id="btn-save-branding" class="primary-btn">💾 Save Branding</button>
+      <button id="btn-reset-branding" class="ghost-btn">Reset to default</button>
+    </div>
+  </section>
+</main>
+
+<footer class="app-footer">
+  <span id="storage-note">Records saved on this device</span>
+</footer>
+
+<div id="toast" hidden></div>
+<iframe id="print-frame" hidden title="print"></iframe>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
