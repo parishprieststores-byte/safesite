@@ -1,6 +1,6 @@
 // SafeSite service worker — makes the app installable and fully offline.
-// After you upload a new index.html, change v4 to v5 (and so on) so phones refresh their saved copy.
-const CACHE_VERSION = 'safesite-v4';
+// After you upload a new index.html, change v5 to v6 (and so on) so phones refresh their saved copy.
+const CACHE_VERSION = 'safesite-v5';
 const CORE = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const CORE = [
   './data.js',
   './app.js',
   './forms.js',
+  './emergency.js',
   './manifest.json',
   './pwa.js',
   './icon-192.png',
