@@ -1340,7 +1340,7 @@ syncBrand();
 
 // Printing: show the document in a hidden layer, hide the rest of the page while printing
 var printStyle = document.createElement('style');
-printStyle.textContent = '#pf-print{display:none}@page{margin:12mm}@media print{body.pf-printing>*:not(#pf-print){display:none!important}body.pf-printing #pf-print{display:block!important}}';
+printStyle.textContent = '#pf-print{display:none}@page{margin:12mm}@media print{body.pf-printing{background:#fff!important}body.pf-printing>*:not(#pf-print){display:none!important}body.pf-printing #pf-print{display:block!important}}';
 document.head.appendChild(printStyle);
 function printDoc(rec) {
   var ph = document.getElementById('pf-print');
