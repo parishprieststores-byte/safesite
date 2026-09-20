@@ -1,6 +1,6 @@
 // SafeSite service worker — makes the app installable and fully offline.
-// After you upload a new index.html, change v6 to v7 (and so on) so phones refresh their saved copy.
-const CACHE_VERSION = 'safesite-v6';
+// Bump the version number below only if you rename or remove files (updated files are picked up automatically).
+const CACHE_VERSION = 'safesite-v7';
 const CORE = [
   './',
   './index.html',
@@ -42,19 +42,21 @@ function saveCopy(req, res) {
   }
 }
 
-// Page loads: use the network when it answers quickly, otherwise the saved copy.
-function pageRequest(req) {
+// Own files (pages, scripts, styles): ask the server first so updates show up straight away;
+// fall back to the saved copy when offline or when the network is very slow.
+function freshFirst(req, isPage) {
   return new Promise((resolve) => {
     let settled = false;
     const finish = (r) => { if (!settled && r) { settled = true; resolve(r); } };
     const fromCache = () =>
-      caches.match(req, { ignoreSearch: true })
-        .then((r) => r || caches.match('./index.html'))
-        .then((r) => r || caches.match('./'));
+      caches.match(req, { ignoreSearch: true }).then((r) => {
+        if (r || !isPage) return r;
+        return caches.match('./index.html').then((x) => x || caches.match('./'));
+      });
 
     const timer = setTimeout(() => { fromCache().then(finish); }, 4000);
 
-    fetch(req)
+    fetch(new Request(req, { cache: 'no-cache' }))
       .then((res) => {
         clearTimeout(timer);
         if (res && res.ok) {
@@ -80,11 +82,16 @@ self.addEventListener('fetch', (event) => {
   if (req.headers.has('range')) return;
 
   if (req.mode === 'navigate') {
-    event.respondWith(pageRequest(req));
+    event.respondWith(freshFirst(req, true));
     return;
   }
 
-  // Everything else (own files, fonts, libraries): saved copy first, refresh in the background.
+  if (new URL(req.url).origin === self.location.origin) {
+    event.respondWith(freshFirst(req, false));
+    return;
+  }
+
+  // Other websites (fonts, libraries): saved copy first, refresh in the background.
   event.respondWith(
     caches.match(req).then((cached) => {
       const network = fetch(req)
@@ -94,3 +101,4 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+          
