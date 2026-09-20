@@ -1,7 +1,7 @@
 /* =====================================================================
    SafeSite — app lock
-   Asks for a passcode when the app is opened and again after it has been
-   in the background for a while. It keeps casual users out; it is a screen
+   Asks for a passcode every time the app is opened and again after it has
+   been in the background for a while (you choose how long in Settings). It keeps casual users out; it is a screen
    lock for this device, not encryption of the saved data.
    Loaded in <head> so the app is hidden before anything is drawn.
    ===================================================================== */
@@ -9,8 +9,9 @@
 'use strict';
 
 var KEY = 'safesite.app.pin.v1';        // custom passcode hash (if changed)
-var SESSION = 'safesite.app.unlocked';  // remembered until the app/tab is closed
-var AUTO_LOCK_MIN = 5;                  // lock again after this many minutes in the background
+var AFTER_KEY = 'safesite.app.lockafter.v1'; // seconds away before locking again (0 = right away)
+var DEFAULT_AFTER = 60;
+var LOCK_VERSION = '2';
 var DEFAULT_HASH = '904c41baeb4b4b4c06e51158e1f3b8de2b0044d4a8b1578b47d9daf160591b74';
 
 function sha256(str) {
@@ -46,8 +47,7 @@ function sha256(str) {
 function hashPin(p) { return sha256('safesite-app:' + p); }
 function lsGet(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
-function ssGet(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
-function ssSet(k, v) { try { if (v == null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) { /* ignore */ } }
+function lockAfterSec() { var v = parseInt(lsGet(AFTER_KEY), 10); return isNaN(v) ? DEFAULT_AFTER : v; }
 function currentHash() { return lsGet(KEY) || DEFAULT_HASH; }
 
 var root = document.documentElement;
@@ -55,8 +55,8 @@ var style = document.createElement('style');
 style.textContent = 'html.sf-locked body>*:not(#sf-lock){visibility:hidden!important}html.sf-locked{overflow:hidden;background:#0d47a1}';
 (document.head || root).appendChild(style);
 
-var unlocked = ssGet(SESSION) === '1';
-if (!unlocked) root.classList.add('sf-locked');
+var unlocked = false;               // every fresh open starts locked
+root.classList.add('sf-locked');
 
 var failCount = 0, lockedOutUntil = 0, hiddenAt = 0;
 
@@ -81,7 +81,7 @@ function buildOverlay() {
   o.setAttribute('role', 'dialog');
   o.setAttribute('aria-modal', 'true');
   o.setAttribute('aria-label', 'SafeSite is locked');
-  o.style.cssText = 'position:fixed;inset:0;z-index:2147483000;display:none;align-items:center;justify-content:center;' +
+  o.style.cssText = 'position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483000;display:none;align-items:center;justify-content:center;' +
     'padding:24px;color:#fff;text-align:center;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif';
   o.innerHTML =
     '<div style="width:100%;max-width:340px">' +
@@ -139,7 +139,7 @@ function tryUnlock() {
     return;
   }
   if (hashPin(inp.value.trim()) === currentHash()) {
-    failCount = 0; unlocked = true; ssSet(SESSION, '1'); inp.value = ''; hideLock();
+    failCount = 0; unlocked = true; inp.value = ''; hideLock();
   } else {
     failCount++;
     if (failCount >= 5) { failCount = 0; lockedOutUntil = Date.now() + 30000; msg.textContent = 'Too many tries. Wait 30 seconds.'; }
@@ -149,22 +149,28 @@ function tryUnlock() {
 }
 
 function lockNow() {
-  unlocked = false; ssSet(SESSION, null);
+  unlocked = false;
   root.classList.add('sf-locked');
   showLock();
 }
 
 // Lock again when the app has been away for a while
 document.addEventListener('visibilitychange', function () {
-  if (document.hidden) { hiddenAt = Date.now(); return; }
-  if (unlocked && hiddenAt && Date.now() - hiddenAt > AUTO_LOCK_MIN * 60000) lockNow();
+  if (document.hidden) {
+    hiddenAt = Date.now();
+    if (unlocked && lockAfterSec() === 0) lockNow();   // also hides the app in the app switcher
+    return;
+  }
+  if (unlocked && hiddenAt && Date.now() - hiddenAt >= lockAfterSec() * 1000) lockNow();
   hiddenAt = 0;
 });
+// Coming back from the browser's back/forward memory counts as a fresh open
+window.addEventListener('pageshow', function (e) { if (e.persisted) lockNow(); });
 
 // ---------- "App lock" card in the Settings tab ----------
 function dialog(html) {
   var d = document.createElement('div');
-  d.style.cssText = 'position:fixed;inset:0;z-index:2147483001;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+  d.style.cssText = 'position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483001;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px';
   d.innerHTML = '<div style="width:100%;max-width:360px;background:#fff;color:#111;border-radius:18px;padding:18px;font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.4)">' + html + '</div>';
   document.body.appendChild(d);
   return d;
@@ -199,10 +205,17 @@ function addSettingsCard() {
   c.className = 'settings-panel';
   c.style.marginTop = '16px';
   c.innerHTML = '<h3 style="margin:0 0 6px">🔒 App lock</h3>' +
-    '<p class="muted" style="margin:0 0 12px">The app asks for a passcode when it is opened, and again after it has been in the background for ' + AUTO_LOCK_MIN + ' minutes.</p>' +
+    '<p class="muted" style="margin:0 0 12px">The app asks for the passcode every time it is opened.</p>' +
+    '<label style="display:block;margin:0 0 12px">Lock again after being away for' +
+    '<select id="sf-lock-after" style="display:block;width:100%;margin-top:6px;padding:12px;font-size:16px;border-radius:12px;border:1px solid #c9d1e0">' +
+    '<option value="0">Right away</option><option value="60">1 minute</option><option value="300">5 minutes</option><option value="900">15 minutes</option></select></label>' +
     '<button type="button" class="ghost-btn" id="sf-lock-now">🔒 Lock now</button> ' +
     '<button type="button" class="ghost-btn" id="sf-lock-change">🔑 Change passcode</button>' +
-    '<p class="hint muted" id="sf-lock-note" style="margin:10px 0 0"></p>';
+    '<p class="hint muted" id="sf-lock-note" style="margin:10px 0 0">App lock is on (version ' + LOCK_VERSION + ').</p>';
+  var sel = c.querySelector('#sf-lock-after');
+  sel.value = String(lockAfterSec());
+  if (sel.value !== String(lockAfterSec())) sel.value = '60';
+  sel.addEventListener('change', function () { lsSet(AFTER_KEY, sel.value); });
   view.appendChild(c);
   c.querySelector('#sf-lock-now').addEventListener('click', lockNow);
   c.querySelector('#sf-lock-change').addEventListener('click', changePin);
@@ -210,7 +223,7 @@ function addSettingsCard() {
 
 function ready() {
   buildOverlay();
-  if (!unlocked) showLock();
+  showLock();
   addSettingsCard();
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
